@@ -1,67 +1,77 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from pydantic import BaseModel
 from typing import Optional
 import base64
 import io
-from PIL import Image
-import torch
-import numpy as np
 import os
+import secrets
 
-# Existing imports
-import numpy as np
-import torch
 from PIL import Image
-import io
-
-from utils import (
-    check_ocr_box,
-    get_yolo_model,
-    get_caption_model_processor,
-    get_som_labeled_img,
-)
 import torch
-
-# yolo_model = get_yolo_model(model_path='/data/icon_detect/best.pt')
-# caption_model_processor = get_caption_model_processor(model_name="florence2", model_name_or_path="/data/icon_caption_florence")
-
 from ultralytics import YOLO
+from transformers import AutoModelForCausalLM, AutoProcessor
 
-# if not os.path.exists("/data/icon_detect"):
-#     os.makedirs("/data/icon_detect")
+from utils import check_ocr_box, get_som_labeled_img
+
+os.environ.setdefault("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", "1")
 
 try:
     yolo_model = YOLO("weights/icon_detect/best.pt").to("cuda")
-except:
+except Exception:
     yolo_model = YOLO("weights/icon_detect/best.pt")
 
-from transformers import AutoProcessor, AutoModelForCausalLM
+ALLOW_ONLINE_DOWNLOAD = os.getenv("OMNIPARSER_ALLOW_ONLINE_DOWNLOAD") == "1"
+LOCAL_FILES_ONLY = not ALLOW_ONLINE_DOWNLOAD
 
 processor = AutoProcessor.from_pretrained(
-    "microsoft/Florence-2-base", trust_remote_code=True
+    "microsoft/Florence-2-base",
+    trust_remote_code=True,
+    local_files_only=LOCAL_FILES_ONLY,
 )
 
-try:
-    model = AutoModelForCausalLM.from_pretrained(
-        "weights/icon_caption_florence",
-        torch_dtype=torch.float16,
-        trust_remote_code=True,
-    ).to("cuda")
-except:
-    model = AutoModelForCausalLM.from_pretrained(
-        "weights/icon_caption_florence",
-        torch_dtype=torch.float16,
-        trust_remote_code=True,
-    )
+florence_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+model = AutoModelForCausalLM.from_pretrained(
+    "weights/icon_caption_florence",
+    torch_dtype=florence_dtype,
+    attn_implementation="eager",
+    trust_remote_code=True,
+    local_files_only=LOCAL_FILES_ONLY,
+)
+if torch.cuda.is_available():
+    model = model.to("cuda")
+
+model.config.use_cache = False
+if getattr(model, "generation_config", None) is not None:
+    model.generation_config.use_cache = False
+
 caption_model_processor = {"processor": processor, "model": model}
 print("finish loading model!!!")
 
 app = FastAPI()
 
 
+@app.get("/")
+async def root():
+    return {"status": "ok"}
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+API_KEY_ENV_NAMES = ("OMNIPARSER-API-KEY", "OMNIPARSER_API_KEY")
+
+
+def get_required_api_key() -> Optional[str]:
+    return next(
+        (os.getenv(env_name) for env_name in API_KEY_ENV_NAMES if os.getenv(env_name)),
+        None,
+    )
+
+
 class ProcessResponse(BaseModel):
-    image: str  # Base64 encoded image
+    image: str
     parsed_content_list: str
     label_coordinates: str
 
@@ -86,7 +96,7 @@ def process(
         output_bb_format="xyxy",
         goal_filtering=None,
         easyocr_args={"paragraph": False, "text_threshold": 0.9},
-        use_paddleocr=True,
+        use_paddleocr=False,
     )
     text, ocr_bbox = ocr_bbox_rslt
     dino_labled_img, label_coordinates, parsed_content_list = get_som_labeled_img(
@@ -104,7 +114,6 @@ def process(
     print("finish processing")
     parsed_content_list_str = "\n".join(parsed_content_list)
 
-    # Encode image to base64
     buffered = io.BytesIO()
     image.save(buffered, format="PNG")
     img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -121,12 +130,22 @@ async def process_image(
     image_file: UploadFile = File(...),
     box_threshold: float = 0.05,
     iou_threshold: float = 0.1,
+    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
 ):
+    required_api_key = get_required_api_key()
+    if not required_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Server auth is not configured. Set OMNIPARSER_API_KEY or OMNIPARSER-API-KEY.",
+        )
+
+    if not x_api_key or not secrets.compare_digest(x_api_key, required_api_key):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
     try:
         contents = await image_file.read()
         image_input = Image.open(io.BytesIO(contents)).convert("RGB")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid image file")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid image file") from exc
 
-    response = process(image_input, box_threshold, iou_threshold)
-    return response
+    return process(image_input, box_threshold, iou_threshold)
