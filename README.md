@@ -26,7 +26,7 @@ If you look at the Dockerfile, we start off with the HF demo image to retrive al
 
 1. Clone the repository
 2. Build the docker image: `docker build -t omni-parser-app .`
-3. Run the docker container: `docker run -p 7860:7860 omni-parser-app`
+3. Run the docker container: `docker run -p 7860:7860 -e OMNIPARSER_API_KEY=test-key -e OMNIPARSER_CORS_ORIGINS=http://127.0.0.1:5500 omni-parser-app`
 
 ### Self-hosted API
 
@@ -41,6 +41,27 @@ Visit `http://localhost:7860/docs` for the API documentation. There's only one r
 - The image with bounding boxes drawn on (in base64) format
 - The parsed elements in a list with text descriptions
 - The bounding box coordinates of the parsed elements
+
+### CORS
+
+The API enables CORS via FastAPI middleware.
+
+- Environment variable: `OMNIPARSER_CORS_ORIGINS`
+- Value format: comma-separated origins, e.g. `http://127.0.0.1:5500,http://localhost:5500`
+- Default value: `*`
+
+For local browser-based testing, set this to your local static file host origin.
+
+### Local Browser Test Page
+
+Open `examples/local_tester.html` in a local static server, e.g.:
+
+```bash
+cd examples
+python3 -m http.server 5500
+```
+
+Then visit `http://127.0.0.1:5500/local_tester.html`.
 
 ## Examples
 

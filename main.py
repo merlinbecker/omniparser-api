@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import base64
@@ -48,6 +49,21 @@ caption_model_processor = {"processor": processor, "model": model}
 print("finish loading model!!!")
 
 app = FastAPI()
+
+
+def get_cors_origins() -> list[str]:
+    origins_raw = os.getenv("OMNIPARSER_CORS_ORIGINS", "*")
+    origins = [origin.strip() for origin in origins_raw.split(",") if origin.strip()]
+    return origins or ["*"]
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_cors_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")

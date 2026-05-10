@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OmniParser Local Tester</title>
+  <style>
+    :root {
+      --bg-1: #f7f4ec;
+      --bg-2: #ebe3d3;
+      --card: #fffdf8;
+      --text: #2f241c;
+      --muted: #6d5a4b;
+      --accent: #c25b2d;
+      --accent-2: #1f6f8b;
+      --danger: #a94438;
+      --ok: #2f7d32;
+      --border: #dccfb8;
+      --shadow: 0 12px 34px rgba(47, 36, 28, 0.12);
+      --radius: 14px;
+      --mono: "IBM Plex Mono", "Fira Code", Menlo, Consolas, monospace;
+      --sans: "Avenir Next", "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(80rem 50rem at 105% -10%, rgba(194, 91, 45, 0.14), transparent 60%),
+        radial-gradient(60rem 45rem at -10% 115%, rgba(31, 111, 139, 0.12), transparent 58%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+      font-family: var(--sans);
+      min-height: 100dvh;
+    }
+
+    .shell {
+      width: min(1200px, 95vw);
+      margin: 24px auto 48px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero {
+      background: linear-gradient(140deg, #fffefb, #f6efe2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: clamp(1.3rem, 2.5vw, 2rem);
+      letter-spacing: 0.2px;
+    }
+
+    .muted { color: var(--muted); }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr;
+    }
+
+    @media (min-width: 1000px) {
+      .grid {
+        grid-template-columns: 360px 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #fff, #f8f2e7);
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 0.88rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    input, button {
+      border-radius: 10px;
+      border: 1px solid #d5c5aa;
+      font: inherit;
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 3px rgba(31, 111, 139, 0.16);
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+      border-color: #a94a21;
+      color: #fff;
+      background: linear-gradient(180deg, #d76a39, #bc4f23);
+      box-shadow: 0 8px 18px rgba(194, 91, 45, 0.3);
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:disabled {
+      opacity: 0.65;
+      cursor: wait;
+      transform: none;
+    }
+
+    .status {
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid #d9cfbe;
+      background: #fff;
+      color: var(--muted);
+      font-size: 0.9rem;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+    }
+
+    .status.ok {
+      border-color: #b4d8b6;
+      background: #f2fbf2;
+      color: var(--ok);
+    }
+
+    .status.error {
+      border-color: #e7bbb4;
+      background: #fff4f2;
+      color: var(--danger);
+    }
+
+    .view-wrap {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 900px) {
+      .view-wrap {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .canvas-wrap {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f4eee1;
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    canvas {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 0.92rem;
+      padding: 12px;
+      text-align: center;
+    }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    summary {
+      cursor: pointer;
+      padding: 11px 13px;
+      background: #fbf6ec;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+
+    pre {
+      margin: 0;
+      padding: 12px;
+      max-height: 340px;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size: 12.6px;
+      line-height: 1.5;
+      background: #fff;
+      color: #22313a;
+    }
+
+    .small {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .split2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <h1>OmniParser API Local Tester</h1>
+      <div class="muted">Screenshot hochladen, API aufrufen, annotiertes Bild inklusive Box-Overlay und JSON/Request debuggen.</div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="card-head">Konfiguration</div>
+        <div class="card-body">
+          <div class="field">
+            <label for="baseUrl">Base URL</label>
+            <input id="baseUrl" placeholder="http://127.0.0.1:8000" />
+          </div>
+
+          <div class="field">
+            <label for="apiKey">API Key</label>
+            <input id="apiKey" type="password" placeholder="test-key" />
+          </div>
+
+          <div class="split2">
+            <div class="field">
+              <label for="boxThreshold">box_threshold</label>
+              <input id="boxThreshold" type="number" step="0.01" min="0" max="1" value="0.05" />
+            </div>
+            <div class="field">
+              <label for="iouThreshold">iou_threshold</label>
+              <input id="iouThreshold" type="number" step="0.01" min="0" max="1" value="0.10" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="imageFile">Screenshot</label>
+            <input id="imageFile" type="file" accept="image/*" />
+            <div class="small">Es wird eine skalierte Vorschau angezeigt. Originaldatei geht unveraendert zur API.</div>
+          </div>
+
+          <button id="runBtn">Annotierung starten</button>
+          <div id="status" class="status">Bereit.</div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">Vorschau und Ergebnis</div>
+        <div class="card-body">
+          <div class="view-wrap">
+            <div>
+              <div class="small">Skalierte Eingabevorschau</div>
+              <div class="canvas-wrap">
+                <canvas id="previewCanvas"></canvas>
+                <div id="previewEmpty" class="empty">Noch kein Bild ausgewaehlt.</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="small">Annotiertes Bild + Boxen</div>
+              <div class="canvas-wrap">
+                <canvas id="resultCanvas"></canvas>
+                <div id="resultEmpty" class="empty">Noch kein API-Ergebnis vorhanden.</div>
+              </div>
+            </div>
+          </div>
+
+          <details open>
+            <summary>Request-Details</summary>
+            <pre id="requestView">Noch kein Request.</pre>
+          </details>
+
+          <details>
+            <summary>Response JSON</summary>
+            <pre id="jsonView">Noch kein Response JSON.</pre>
+          </details>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "omniparser.localTester.v1";
+
+    const els = {
+      baseUrl: document.getElementById("baseUrl"),
+      apiKey: document.getElementById("apiKey"),
+      boxThreshold: document.getElementById("boxThreshold"),
+      iouThreshold: document.getElementById("iouThreshold"),
+      imageFile: document.getElementById("imageFile"),
+      runBtn: document.getElementById("runBtn"),
+      status: document.getElementById("status"),
+      requestView: document.getElementById("requestView"),
+      jsonView: document.getElementById("jsonView"),
+      previewCanvas: document.getElementById("previewCanvas"),
+      resultCanvas: document.getElementById("resultCanvas"),
+      previewEmpty: document.getElementById("previewEmpty"),
+      resultEmpty: document.getElementById("resultEmpty"),
+    };
+
+    let selectedFile = null;
+
+    function setStatus(msg, kind = "") {
+      els.status.textContent = msg;
+      els.status.className = "status" + (kind ? " " + kind : "");
+    }
+
+    function saveConfig() {
+      const data = {
+        baseUrl: els.baseUrl.value.trim(),
+        apiKey: els.apiKey.value,
+        boxThreshold: els.boxThreshold.value,
+        iouThreshold: els.iouThreshold.value,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function loadConfig() {
+      try {
+        const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        els.baseUrl.value = data.baseUrl || "http://127.0.0.1:8000";
+        els.apiKey.value = data.apiKey || "";
+        els.boxThreshold.value = data.boxThreshold || "0.05";
+        els.iouThreshold.value = data.iouThreshold || "0.10";
+      } catch {
+        els.baseUrl.value = "http://127.0.0.1:8000";
+      }
+    }
+
+    function bindPersistence() {
+      [els.baseUrl, els.apiKey, els.boxThreshold, els.iouThreshold].forEach((el) => {
+        el.addEventListener("input", saveConfig);
+      });
+    }
+
+    function toDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    function fitSize(width, height, maxW = 960, maxH = 700) {
+      const scale = Math.min(maxW / width, maxH / height, 1);
+      return {
+        width: Math.round(width * scale),
+        height: Math.round(height * scale),
+        scale,
+      };
+    }
+
+    function drawImageScaled(canvas, image, maxW = 960, maxH = 700) {
+      const ctx = canvas.getContext("2d");
+      const size = fitSize(image.width, image.height, maxW, maxH);
+      canvas.width = size.width;
+      canvas.height = size.height;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, size.width, size.height);
+      return size;
+    }
+
+    function showPreview(file) {
+      return toDataUrl(file)
+        .then(loadImage)
+        .then((img) => {
+          drawImageScaled(els.previewCanvas, img, 960, 600);
+          els.previewEmpty.style.display = "none";
+        })
+        .catch(() => {
+          setStatus("Preview konnte nicht geladen werden.", "error");
+        });
+    }
+
+    function parseMaybeJson(str) {
+      if (typeof str !== "string") return str;
+      try { return JSON.parse(str); } catch {}
+
+      let normalized = str.trim();
+      normalized = normalized.replace(/\bNone\b/g, "null");
+      normalized = normalized.replace(/\bTrue\b/g, "true");
+      normalized = normalized.replace(/\bFalse\b/g, "false");
+      try {
+        return JSON.parse(normalized.replace(/'/g, '"'));
+      } catch {
+        return str;
+      }
+    }
+
+    function collectBoxes(value, bucket = []) {
+      if (!value) return bucket;
+
+      if (Array.isArray(value)) {
+        if (value.length === 4 && value.every((n) => typeof n === "number" && isFinite(n))) {
+          bucket.push(value);
+        } else {
+          value.forEach((v) => collectBoxes(v, bucket));
+        }
+        return bucket;
+      }
+
+      if (typeof value === "object") {
+        const boxCandidates = ["bbox", "box", "coordinates", "coord", "xyxy"];
+        for (const key of boxCandidates) {
+          if (key in value) collectBoxes(value[key], bucket);
+        }
+        for (const v of Object.values(value)) collectBoxes(v, bucket);
+      }
+      return bucket;
+    }
+
+    function extractBoxesFromString(text) {
+      if (typeof text !== "string") return [];
+      const regex = /\[\s*(-?\d*\.?\d+(?:e[+-]?\d+)?)\s*,\s*(-?\d*\.?\d+(?:e[+-]?\d+)?)\s*,\s*(-?\d*\.?\d+(?:e[+-]?\d+)?)\s*,\s*(-?\d*\.?\d+(?:e[+-]?\d+)?)\s*\]/gi;
+      const out = [];
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        out.push(match.slice(1).map((x) => Number(x)));
+      }
+      return out;
+    }
+
+    function normalizeBox(box, width, height) {
+      if (!Array.isArray(box) || box.length !== 4) return null;
+      let [x1, y1, x2, y2] = box;
+      const looksRatio = [x1, y1, x2, y2].every((v) => v >= 0 && v <= 1.1);
+      if (looksRatio) {
+        x1 *= width;
+        x2 *= width;
+        y1 *= height;
+        y2 *= height;
+      }
+      if ([x1, y1, x2, y2].some((v) => !isFinite(v))) return null;
+      if (x2 < x1) [x1, x2] = [x2, x1];
+      if (y2 < y1) [y1, y2] = [y2, y1];
+      return [x1, y1, x2, y2];
+    }
+
+    function drawBoxes(canvas, boxes) {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.lineWidth = Math.max(2, Math.round(Math.min(w, h) / 320));
+      ctx.font = "12px IBM Plex Mono, monospace";
+      boxes.forEach((raw, idx) => {
+        const box = normalizeBox(raw, w, h);
+        if (!box) return;
+        const [x1, y1, x2, y2] = box;
+        const bw = Math.max(1, x2 - x1);
+        const bh = Math.max(1, y2 - y1);
+
+        const hue = (idx * 47) % 360;
+        const color = `hsla(${hue}, 88%, 42%, 0.95)`;
+        const fill = `hsla(${hue}, 88%, 52%, 0.16)`;
+
+        ctx.strokeStyle = color;
+        ctx.fillStyle = fill;
+        ctx.fillRect(x1, y1, bw, bh);
+        ctx.strokeRect(x1, y1, bw, bh);
+
+        const label = String(idx + 1);
+        const tw = ctx.measureText(label).width + 10;
+        const th = 18;
+        const lx = Math.max(0, x1);
+        const ly = Math.max(0, y1 - th);
+        ctx.fillStyle = color;
+        ctx.fillRect(lx, ly, tw, th);
+        ctx.fillStyle = "#fff";
+        ctx.fillText(label, lx + 5, ly + 13);
+      });
+    }
+
+    function buildCurlSnippet({ endpoint, apiKey, boxThreshold, iouThreshold }) {
+      return [
+        "curl -sS -L \\",
+        "  -H \"x-api-key: " + apiKey + "\" \\",
+        "  -F \"image_file=@<DEIN_BILD>\" \\",
+        "  -F \"box_threshold=" + boxThreshold + "\" \\",
+        "  -F \"iou_threshold=" + iouThreshold + "\" \\",
+        "  \"" + endpoint + "\"",
+      ].join("\n");
+    }
+
+    function extractAllBoxes(labelCoordinatesRaw) {
+      const maybeObj = parseMaybeJson(labelCoordinatesRaw);
+      const boxes = collectBoxes(maybeObj, []);
+      if (boxes.length > 0) return boxes;
+      if (typeof labelCoordinatesRaw === "string") return extractBoxesFromString(labelCoordinatesRaw);
+      return [];
+    }
+
+    async function runAnnotation() {
+      if (!selectedFile) {
+        setStatus("Bitte zuerst ein Bild auswaehlen.", "error");
+        return;
+      }
+
+      const baseUrl = els.baseUrl.value.trim().replace(/\/$/, "");
+      if (!baseUrl) {
+        setStatus("Bitte eine Base URL eintragen.", "error");
+        return;
+      }
+
+      const endpoint = baseUrl + "/process_image";
+      const apiKey = els.apiKey.value;
+      const boxThreshold = els.boxThreshold.value;
+      const iouThreshold = els.iouThreshold.value;
+
+      els.requestView.textContent = [
+        "POST " + endpoint,
+        "Headers:",
+        "  x-api-key: " + (apiKey ? "*** gesetzt ***" : "<leer>"),
+        "Body (multipart/form-data):",
+        "  image_file: " + selectedFile.name + " (" + (selectedFile.type || "application/octet-stream") + ", " + selectedFile.size + " bytes)",
+        "  box_threshold: " + boxThreshold,
+        "  iou_threshold: " + iouThreshold,
+        "",
+        "Beispiel cURL:",
+        buildCurlSnippet({ endpoint, apiKey, boxThreshold, iouThreshold }),
+      ].join("\n");
+
+      const form = new FormData();
+      form.append("image_file", selectedFile, selectedFile.name);
+      form.append("box_threshold", boxThreshold);
+      form.append("iou_threshold", iouThreshold);
+
+      els.runBtn.disabled = true;
+      setStatus("Request laeuft...", "");
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "x-api-key": apiKey },
+          body: form,
+        });
+
+        const text = await response.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { raw: text };
+        }
+
+        els.jsonView.textContent = JSON.stringify({ status: response.status, ok: response.ok, data }, null, 2);
+
+        if (!response.ok) {
+          const detail = data && data.detail ? String(data.detail) : "Unbekannter API-Fehler";
+          setStatus("Fehler " + response.status + ": " + detail, "error");
+          return;
+        }
+
+        if (!data.image) {
+          setStatus("API-Antwort enthaelt kein Feld 'image'.", "error");
+          return;
+        }
+
+        const img = await loadImage("data:image/png;base64," + data.image);
+        drawImageScaled(els.resultCanvas, img, 1200, 760);
+
+        const boxes = extractAllBoxes(data.label_coordinates);
+        if (boxes.length) {
+          drawBoxes(els.resultCanvas, boxes);
+        }
+
+        els.resultEmpty.style.display = "none";
+        setStatus("Erfolg. " + boxes.length + " Boxen gezeichnet.", "ok");
+      } catch (error) {
+        els.jsonView.textContent = String(error && error.stack ? error.stack : error);
+        setStatus("Netzwerkfehler. Pruefe CORS, Base URL und API-Key.", "error");
+      } finally {
+        els.runBtn.disabled = false;
+      }
+    }
+
+    function wireEvents() {
+      els.imageFile.addEventListener("change", async (ev) => {
+        const file = ev.target.files && ev.target.files[0];
+        if (!file) return;
+        selectedFile = file;
+        await showPreview(file);
+        setStatus("Bild geladen: " + file.name, "");
+      });
+
+      els.runBtn.addEventListener("click", runAnnotation);
+    }
+
+    loadConfig();
+    bindPersistence();
+    wireEvents();
+  </script>
+</body>
+</html>

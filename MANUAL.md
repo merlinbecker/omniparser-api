@@ -42,6 +42,7 @@ docker build \
 docker run --rm -p 8000:8000 \
   -e PORT=8000 \
   -e OMNIPARSER_API_KEY=test-key \
+  -e OMNIPARSER_CORS_ORIGINS=http://127.0.0.1:5500 \
   omniparser-api:local
 ```
 
@@ -51,6 +52,7 @@ Falls das ACR-Image getestet werden soll:
 docker run --rm -p 8000:8000 \
   -e PORT=8000 \
   -e OMNIPARSER_API_KEY=test-key \
+  -e OMNIPARSER_CORS_ORIGINS=http://127.0.0.1:5500 \
   cromniparser.azurecr.io/omniparser-api:<TAG>
 ```
 
@@ -83,6 +85,25 @@ Erwartung:
   - `image`
   - `parsed_content_list`
   - `label_coordinates`
+
+## Lokale Browser-Testseite
+
+Eine fertige Seite fuer End-to-End-Tests liegt unter `examples/local_tester.html`.
+
+Start als statische Datei:
+
+```bash
+cd examples
+python3 -m http.server 5500
+```
+
+Dann im Browser:
+
+```text
+http://127.0.0.1:5500/local_tester.html
+```
+
+Hinweis: Der Container muss fuer CORS die Origin erlauben (siehe `OMNIPARSER_CORS_ORIGINS`).
 
 ## Cloud-Test gegen Azure Container Apps
 
